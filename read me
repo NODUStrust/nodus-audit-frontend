@@ -1,0 +1,9 @@
+# NODUStrust Checklist Frontend
+
+Static frontend interface for compliance checklist and export preview.
+
+## Features
+
+- Checklist with 11 core due diligence steps
+- Preview mode (mock)
+- Ready for static Vercel deployment
