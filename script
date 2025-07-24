@@ -1,0 +1,32 @@
+const checklistItems = [
+  "EIN, UCC, and DUNS names match",
+  "Address and contact info are uniform",
+  "Security agreements signed and enforceable",
+  "Trust and LLC responsibilities clearly separated",
+  "Bank onboarding summary prepared",
+  "CUSIP request backed by complete documentation",
+  "Signature authority verified and logged",
+  "Documents formatted as final PDFs",
+  "Banking targets shortlisted",
+  "Investor disclaimers and risk language validated",
+  "Annual reports and registrations updated"
+];
+
+const checklistEl = document.getElementById("checklist");
+const exportBtn = document.getElementById("export");
+const previewBtn = document.getElementById("preview");
+
+checklistItems.forEach((item, index) => {
+  const li = document.createElement("li");
+  li.innerHTML = `<input type="checkbox" id="item-${index}"> <label for="item-${index}">${item}</label>`;
+  checklistEl.appendChild(li);
+});
+
+previewBtn.onclick = () => {
+  const win = window.open("", "_blank");
+  win.document.write(document.documentElement.outerHTML);
+};
+
+exportBtn.onclick = () => {
+  alert("Mock export initiated. (PDF export requires html2pdf or similar client lib.)");
+};
