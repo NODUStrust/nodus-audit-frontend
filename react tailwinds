@@ -1,0 +1,448 @@
+roject: nodus-audit-dashboard (React + Vite + Tailwind + Serverless API)
+Project tree
+nodus-audit-dashboard/
+├── package.json
+├── vite.config.js
+├── index.html
+├── tailwind.config.cjs
+├── postcss.config.cjs
+├── .gitignore
+├── .env.example
+├── README.md
+├── src/
+│   ├── main.jsx
+│   ├── App.jsx
+│   └── components/
+│       └── Checklist.jsx
+├── public/
+│   └── favicon.ico   (optional)
+└── api/
+    └── audit-log.js   (Vercel serverless function)
+1) package.json (root)
+{
+  "name": "nodus-audit-dashboard",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "start": "vite preview"
+  },
+  "dependencies": {
+    "axios": "^1.4.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0"
+  },
+  "devDependencies": {
+    "autoprefixer": "^10.4.14",
+    "postcss": "^8.4.24",
+    "tailwindcss": "^3.4.7",
+    "vite": "^5.2.0"
+  }
+}
+2) vite.config.js
+import { defineConfig } from 'vite'
+import react from '@vitejs/plugin-react'
+
+export default defineConfig({
+  plugins: [react()],
+  server: {
+    port: 3000
+  }
+})
+3) index.html
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>NODUS Preflight Checklist</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
+</html>
+4) Tailwind & PostCSS configs
+tailwind.config.cjs
+module.exports = {
+  content: [
+    "./index.html",
+    "./src/**/*.{js,jsx,ts,tsx}"
+  ],
+  theme: {
+    extend: {}
+  },
+  plugins: []
+}
+postcss.config.cjs
+module.exports = {
+  plugins: {
+    tailwindcss: {},
+    autoprefixer: {},
+  }
+}
+5) .gitignore
+node_modules/
+dist/
+.env
+logs/
+.vscode/
+6) .env.example
+# For local dev S3 fallback (optional - only if you want S3)
+AWS_ACCESS_KEY_ID=your_aws_key
+AWS_SECRET_ACCESS_KEY=your_aws_secret
+AWS_REGION=us-east-1
+AWS_S3_BUCKET=your_bucket_name
+
+# For simple local-only mode, no S3 credentials required.
+# AUDIT_API_KEY can be used to protect the API (optional)
+AUDIT_API_KEY=your_local_api_key
+7) README.md (short)
+# NODUS Audit Dashboard
+
+React + Vite + Tailwind frontend with a serverless `/api/audit-log` endpoint.
+Local development writes logs to `./logs/`. In production, set AWS_S3_* env vars to store logs in S3.
+
+## Run locally
+1. copy `.env.example` to `.env` and edit if needed
+2. npm install
+3. npm run dev
+4. Open http://localhost:3000
+
+## Deploy
+- Push to GitHub, import to Vercel, set environment variables (AUDIT_API_KEY optional, AWS_S3_* to enable S3 uploads).
+8) src/main.jsx
+import React from 'react'
+import { createRoot } from 'react-dom/client'
+import App from './App'
+import './index.css'
+
+createRoot(document.getElementById('root')).render(<App />)
+9) src/index.css (Tailwind base)
+Create src/index.css:
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html, body, #root {
+  height: 100%;
+}
+body {
+  @apply bg-gray-100 text-gray-900;
+}
+10) src/App.jsx
+import React from 'react'
+import Checklist from './components/Checklist'
+
+export default function App(){
+  return (
+    <div className="min-h-screen flex items-center justify-center p-6">
+      <div className="w-full max-w-3xl bg-white rounded-lg shadow p-6">
+        <h1 className="text-2xl font-semibold mb-4">NODUS Pre-Flight Checklist</h1>
+        <Checklist />
+      </div>
+    </div>
+  )
+}
+11) src/components/Checklist.jsx
+import React, { useEffect, useState, useRef } from 'react'
+import axios from 'axios'
+
+const checklistItems = [
+  "EIN, UCC, and DUNS names match",
+  "Address and contact info are uniform",
+  "Security agreements signed and enforceable",
+  "Trust and LLC responsibilities clearly separated",
+  "Bank onboarding summary prepared",
+  "CUSIP request backed by complete documentation",
+  "Signature authority verified and logged",
+  "Documents formatted as final PDFs",
+  "Banking targets shortlisted",
+  "Investor disclaimers and risk language validated",
+  "Annual reports and registrations updated"
+];
+
+export default function Checklist(){
+  const [checked, setChecked] = useState(Array(checklistItems.length).fill(false))
+  const [role, setRole] = useState(null)
+  const [log, setLog] = useState([])
+  const checklistRef = useRef(null)
+  const [sending, setSending] = useState(false)
+
+  useEffect(()=> {
+    // load persisted state if desired (localStorage)
+    const saved = localStorage.getItem('nodus_checked')
+    if (saved) {
+      try { setChecked(JSON.parse(saved)) } catch(e){}
+    }
+  },[])
+
+  useEffect(()=>{
+    localStorage.setItem('nodus_checked', JSON.stringify(checked))
+  },[checked])
+
+  const toggle = (i) => {
+    if (role !== 'admin') return
+    const next = [...checked]; next[i] = !next[i]
+    setChecked(next)
+    addLog(`Item ${i+1} ${next[i] ? 'checked' : 'unchecked'}`)
+  }
+
+  const addLog = (msg) => {
+    const entry = { ts: new Date().toISOString(), role: role || 'anonymous', msg }
+    setLog(prev => [...prev, entry])
+  }
+
+  const allChecked = checked.every(Boolean)
+
+  const preview = () => {
+    const win = window.open('', '_blank')
+    if (!win) { alert('Popup blocked — allow popups to preview.'); return }
+    const cloned = checklistRef.current.cloneNode(true)
+    const wrapper = document.createElement('div')
+    wrapper.style.padding = '20px'
+    wrapper.style.fontFamily = 'sans-serif'
+    wrapper.appendChild(cloned)
+    win.document.body.innerHTML = ''
+    win.document.body.appendChild(wrapper)
+  }
+
+  const exportPDF = async () => {
+    // client-side export using html2pdf if included; we'll do a fallback alert if missing
+    if (window.html2pdf) {
+      const el = checklistRef.current.cloneNode(true)
+      const watermark = document.createElement('div')
+      watermark.style.position = 'absolute'
+      watermark.style.top = '40%'
+      watermark.style.left = '25%'
+      watermark.style.fontSize = '3rem'
+      watermark.style.opacity = '0.08'
+      watermark.style.transform = 'rotate(-30deg)'
+      watermark.style.pointerEvents = 'none'
+      watermark.textContent = 'NODUS TRUST'
+      const wrap = document.createElement('div')
+      wrap.style.position = 'relative'
+      wrap.appendChild(el)
+      wrap.appendChild(watermark)
+      window.html2pdf().from(wrap).save('Preflight_Checklist.pdf')
+      addLog('Exported PDF (client)')
+    } else {
+      alert('PDF export library not loaded. Add html2pdf.js to index.html to enable full export.')
+    }
+  }
+
+  const sendToServer = async () => {
+    setSending(true)
+    try {
+      const payload = { checked, logs: log, ts: new Date().toISOString() }
+      const res = await axios.post('/api/audit-log', payload)
+      addLog('Sent audit log to server: ' + (res.data?.message || res.status))
+      alert('Audit log sent.')
+    } catch (err) {
+      console.error(err)
+      alert('Failed to send audit log: ' + (err?.response?.data?.error || err.message))
+      addLog('Failed to send audit log')
+    } finally {
+      setSending(false)
+    }
+  }
+
+  const handleLogin = (e) => {
+    e.preventDefault()
+    const form = new FormData(e.target)
+    const email = form.get('email')
+    const password = form.get('password')
+    if (email === 'admin@nodustrust.org' && password === 'securepass') {
+      setRole('admin')
+      addLog('Admin logged in')
+    } else {
+      alert('Invalid credentials')
+    }
+  }
+
+  return (
+    <div>
+      {!role && (
+        <form onSubmit={handleLogin} className="mb-4 flex gap-2">
+          <input name="email" type="email" placeholder="Email" className="border p-2 rounded flex-1" />
+          <input name="password" type="password" placeholder="Password" className="border p-2 rounded flex-1" />
+          <button className="bg-blue-600 text-white px-4 rounded">Login</button>
+        </form>
+      )}
+
+      <div ref={checklistRef}>
+        {checklistItems.map((it, i) => (
+          <div key={i} className="flex items-center gap-4 py-2 border-b">
+            <input type="checkbox" checked={checked[i]} onChange={()=>toggle(i)} disabled={role !== 'admin'} />
+            <div className="flex-1">{it}</div>
+          </div>
+        ))}
+      </div>
+
+      {role === 'admin' && (
+        <div className="mt-4 grid grid-cols-1 gap-2">
+          <button onClick={exportPDF} className="bg-green-600 text-white px-4 py-2 rounded">Export PDF</button>
+          <button onClick={preview} className="border px-4 py-2 rounded">Preview Mock</button>
+          <button onClick={sendToServer} disabled={!log.length || sending} className="bg-indigo-600 text-white px-4 py-2 rounded">
+            {sending ? 'Sending...' : 'Send Audit Log'}
+          </button>
+        </div>
+      )}
+
+      <div className="mt-6">
+        <h3 className="font-semibold">Audit Trail</h3>
+        <ul className="max-h-40 overflow-auto mt-2 text-sm">
+          {log.map((l, idx)=> (
+            <li key={idx} className="text-gray-700">
+              [{l.ts}] ({l.role}) — {l.msg}
+            </li>
+          ))}
+        </ul>
+      </div>
+    </div>
+  )
+}
+12) api/audit-log.js (Vercel serverless function)
+Note: Vercel serverless functions are ephemeral — they cannot persist files across invocations. This function will:
+
+If AWS S3 env vars are set, upload the log to S3 (durable).
+
+Else, during local dev (when running with vercel dev or node), it will write to ./logs/*.json so you can inspect results.
+
+// api/audit-log.js
+import fs from 'fs'
+import path from 'path'
+import { fileURLToPath } from 'url'
+
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = path.dirname(__filename)
+
+// helper: try to upload to S3 if configured
+async function uploadToS3(body) {
+  const { AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_REGION, AWS_S3_BUCKET } = process.env
+  if (!AWS_ACCESS_KEY_ID || !AWS_SECRET_ACCESS_KEY || !AWS_REGION || !AWS_S3_BUCKET) return null
+
+  // lazy import to avoid adding aws sdk to everyone who doesn't want it
+  const { S3Client, PutObjectCommand } = await import('@aws-sdk/client-s3')
+  const s3 = new S3Client({
+    region: AWS_REGION,
+    credentials: {
+      accessKeyId: AWS_ACCESS_KEY_ID,
+      secretAccessKey: AWS_SECRET_ACCESS_KEY
+    }
+  })
+
+  const key = `audit-${Date.now()}.json`
+  const cmd = new PutObjectCommand({
+    Bucket: AWS_S3_BUCKET,
+    Key: key,
+    Body: JSON.stringify(body, null, 2),
+    ContentType: 'application/json'
+  })
+
+  await s3.send(cmd)
+  return key
+}
+
+export default async function handler(req, res) {
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
+
+  try {
+    const body = req.body || (await new Promise(r => {
+      let s = ''
+      req.on('data', c => s += c)
+      req.on('end', () => r(JSON.parse(s)))
+    }))
+
+    // optional simple auth
+    const apiKey = process.env.AUDIT_API_KEY
+    const clientKey = req.headers['x-audit-key'] || req.query.key
+    if (apiKey && clientKey !== apiKey) {
+      return res.status(401).json({ error: 'Invalid audit key' })
+    }
+
+    // Try S3 upload first (production)
+    try {
+      const s3Key = await uploadToS3(body)
+      if (s3Key) {
+        return res.status(200).json({ message: 'Uploaded to S3', key: s3Key })
+      }
+    } catch (err) {
+      console.error('S3 upload failed:', err && err.message)
+      // fall through to local save if possible
+    }
+
+    // Local save (dev): write to ./logs
+    const logsDir = path.join(__dirname, '..', 'logs')
+    if (!fs.existsSync(logsDir)) fs.mkdirSync(logsDir, { recursive: true })
+    const filePath = path.join(logsDir, `audit_${Date.now()}.json`)
+    fs.writeFileSync(filePath, JSON.stringify(body, null, 2), 'utf8')
+
+    return res.status(200).json({ message: 'Saved locally', file: filePath })
+  } catch (err) {
+    console.error('audit-log error', err)
+    return res.status(500).json({ error: err.message || 'Server error' })
+  }
+}
+Important: If you plan to use S3 in Vercel, add the following environment variables (Vercel dashboard → Settings → Environment Variables):
+
+AWS_ACCESS_KEY_ID
+
+AWS_SECRET_ACCESS_KEY
+
+AWS_REGION
+
+AWS_S3_BUCKET
+
+Optionally AUDIT_API_KEY to protect the endpoint.
+
+Also, add @aws-sdk/client-s3 to your project if you enable S3 (see install step below).
+
+13) Install extras (if using S3)
+If you want S3 support in Vercel, add:
+
+npm install @aws-sdk/client-s3 axios
+(axios is already in package.json above — but if not, run the install.)
+
+14) Local dev instructions (Windows / PC)
+Clone or place the project folder on your PC.
+
+In PowerShell inside the project root:
+
+# allow scripts for this session only (safe)
+Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force
+
+npm install
+npm run dev
+Open http://localhost:3000
+
+To test the serverless API locally, use Vercel CLI or emulate:
+
+Easiest for local test: run node on the function (but that requires minor tweaks)
+
+Alternatively, use curl or Postman against the Vercel-deployed URL after you deploy
+
+15) Deploy to Vercel (recommended steps)
+Push the repo to GitHub.
+
+In Vercel, import the repo.
+
+Vercel will auto-detect Vite. Set:
+
+Build Command: npm run build
+
+Output Directory: dist
+
+In Vercel → Settings → Environment Variables, add:
+
+AUDIT_API_KEY (if you want to protect endpoint)
+
+AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_REGION, AWS_S3_BUCKET (if using S3)
+
+Deploy. The endpoint will be:
+
+POST https://your-vercel-domain/api/audit-log
