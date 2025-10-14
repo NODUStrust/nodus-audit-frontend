@@ -1,1 +1,18 @@
 
+name: CI (repo-level)
+
+on:
+	push:
+		branches: [ main ]
+	workflow_dispatch:
+
+jobs:
+	build:
+		runs-on: ubuntu-latest
+		steps:
+			- uses: actions/checkout@v4
+			- name: Note about scaffold
+				run: |
+					echo "This workflow is a placeholder. The repository contains a local scaffold script at scripts/clean_and_zip_monday.ps1"
+					echo "To run cleaning locally, follow third_party/monday-tailwind/README.md"
+
