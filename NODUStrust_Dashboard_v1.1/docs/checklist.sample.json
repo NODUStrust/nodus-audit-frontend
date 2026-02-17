@@ -1,0 +1,10 @@
+{
+  "id": "preflight-001",
+  "title": "NODUStrust Preflight Compliance Checklist",
+  "items": [
+    {"id":"c1","label":"Verify API reachable","status":"pending","endpoint":"/api/audit-log"},
+    {"id":"c2","label":"Verify PDF watermark","status":"pending"},
+    {"id":"c3","label":"Verify AUDIT_API_KEY in Vercel secrets","status":"pending"}
+  ],
+  "export": {"pdf":true, "json":true}
+}
