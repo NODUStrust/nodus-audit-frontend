@@ -1,14 +1,26 @@
 import React, { useEffect, useState } from 'react'
 import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom'
 import Overview from './pages/Overview'
+import { fetchAuditLogs } from './api/auditApi'
 
 function Dashboard() {
   const [logs, setLogs] = useState([])
+  const [error, setError] = useState('')
+
   useEffect(() => {
-    fetch((import.meta.env.VITE_API_BASE || '') + '/api/audit-log')
-      .then(r => r.json())
-      .then(j => setLogs(j.data || []))
-      .catch(() => setLogs([]))
+    let active = true
+    fetchAuditLogs()
+      .then(data => {
+        if (active) setLogs(data)
+      })
+      .catch(err => {
+        console.error('Failed to load dashboard audit logs:', err)
+        if (active) setError(err instanceof Error ? err.message : String(err))
+      })
+
+    return () => {
+      active = false
+    }
   }, [])
 
   return (
@@ -17,6 +29,7 @@ function Dashboard() {
       <p>Role: <strong>Admin</strong> | Persistent audit trail active</p>
       <section>
         <h2>Real-time audit logs</h2>
+        {error && <p role="alert">Unable to load audit logs: {error}</p>}
         <pre style={{ background: '#0f172a', color: '#e2e8f0', padding: 12 }}>{JSON.stringify(logs, null, 2)}</pre>
       </section>
       <section>
