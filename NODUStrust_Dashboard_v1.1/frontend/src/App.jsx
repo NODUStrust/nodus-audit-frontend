@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom'
 import Overview from './pages/Overview'
+import Cases from './pages/Cases'
 import { fetchAuditLogs } from './api/auditApi'
 
 function Dashboard() {
@@ -46,13 +47,15 @@ function Dashboard() {
 export default function App() {
   return (
     <Router>
-      <nav style={{ borderBottom: '1px solid #ddd', padding: '12px 24px', display: 'flex', gap: '24px' }}>
-        <Link to="/" style={{ textDecoration: 'none', fontWeight: 'bold', color: '#0ea5e9' }}>Dashboard</Link>
-        <Link to="/overview" style={{ textDecoration: 'none', fontWeight: 'bold', color: '#0ea5e9' }}>Insights</Link>
+      <nav aria-label="Main navigation" style={{ borderBottom: '1px solid #ddd', padding: '12px 24px', display: 'flex', gap: '24px' }}>
+        <Link to="/" className="font-bold text-sky-800 no-underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-800">Dashboard</Link>
+        <Link to="/overview" className="font-bold text-sky-800 no-underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-800">Insights</Link>
+        <Link to="/cases" className="font-bold text-sky-800 no-underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-800">Case Management</Link>
       </nav>
       <Routes>
         <Route path="/" element={<Dashboard />} />
         <Route path="/overview" element={<Overview />} />
+        <Route path="/cases" element={<Cases />} />
       </Routes>
     </Router>
   )
